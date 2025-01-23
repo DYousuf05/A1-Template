@@ -7,11 +7,46 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.cli.*;
 
+class Maze {
+    private char[][] maze;
+
+    // public Maze(char[][] maze) {
+    //     this.maze = maze;
+    // }
+
+    public boolean isBlocked(int row, int col) {
+        return maze[row][col] == '#';
+    }
+}
+
+class Player {
+    private String dir;
+    private int[] pos;
+
+    public String getDir() {
+        return dir;
+    }
+
+    public void setDir(String newDir) {
+        dir = newDir;
+    }
+
+    public int[] getPos() {
+        return pos;
+    }
+
+    public void setPos(int row, int col) {
+        pos[0] = row;
+        pos[1] = col;
+    }
+}
+
 public class Main {
 
     private static final Logger logger = LogManager.getLogger();
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
-
+    Maze maze = new Maze();
+    Player player = new Player();
     public static void main(String[] args) {
         logger.info("** Starting Maze Runner");
 
