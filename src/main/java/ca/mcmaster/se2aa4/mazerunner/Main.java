@@ -7,37 +7,50 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.cli.*;
 
-class Maze {
-    private char[][] maze;
+enum Direction {
+    NORTH,
+    EAST,
+    SOUTH,
+    WEST,
+}
 
-    // public Maze(char[][] maze) {
-    //     this.maze = maze;
-    // }
+class Maze {
+    public boolean[][] maze;
+
+    public Maze(int rows, int cols) {
+        maze = new boolean[rows][cols];
+    }
+    
+    public void setMazeUnit(int row, int col, boolean val) {
+        maze[row][col] = val;
+    }
 
     public boolean isBlocked(int row, int col) {
-        return maze[row][col] == '#';
+        return maze[row][col] == true;
     }
 }
 
 class Player {
-    private String dir;
-    private int[] pos;
+    private Direction dir;
+    private Position pos;
 
-    public String getDir() {
-        return dir;
+    public Player() {
+
     }
 
-    public void setDir(String newDir) {
+    public void setDir(Direction newDir) {
         dir = newDir;
     }
 
-    public int[] getPos() {
-        return pos;
-    }
+}
 
-    public void setPos(int row, int col) {
-        pos[0] = row;
-        pos[1] = col;
+class Position extends Player {
+    int row;
+    int col;
+
+    public void setPos(int newRow, int newCol) {
+        row = newRow;
+        col = newCol;
     }
 }
 
@@ -45,9 +58,10 @@ public class Main {
 
     private static final Logger logger = LogManager.getLogger();
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
-    Maze maze = new Maze();
-    Player player = new Player();
-    public static void main(String[] args) {
+       public static void main(String[] args) {
+        Player player = new Player();
+        
+    
         logger.info("** Starting Maze Runner");
 
         CommandLineParser clParser = new DefaultParser();
@@ -59,21 +73,41 @@ public class Main {
             if (cl.hasOption(mazeArg.getLongOpt())) {
                 String fileArg = cl.getOptionValue(mazeArg.getLongOpt());
                 logger.trace("**** Reading the maze from file " + fileArg);
+                BufferedReader tempReader = new BufferedReader(new FileReader(fileArg));
                 BufferedReader reader = new BufferedReader(new FileReader(fileArg));
+                String tempLine;
                 String line;
+                int rows = 0;
+                int cols = 0;
+                int lineCount = 0;
+                while ((tempLine = tempReader.readLine()) != null) {
+                    rows++;
+                    cols = Math.max(cols, tempLine.length());
+                }
+
+                Maze mazeo = new Maze(rows, cols);
+
                 while ((line = reader.readLine()) != null) {
                     for (int idx = 0; idx < line.length(); idx++) {
                         if (line.charAt(idx) == '#') {
-                            System.out.print("WALL ");
+                            mazeo.setMazeUnit(lineCount, idx, true);
                         } else if (line.charAt(idx) == ' ') {
-                            System.out.print("PASS ");
+                            mazeo.setMazeUnit(lineCount, idx, false);
                         }
                     }
                     System.out.print(System.lineSeparator());
+                    lineCount++;
+                }
+                for (int i = 0; i < mazeo.maze.length; i++) {
+                    System.out.println();
+                    for (int j = 0; j < mazeo.maze[i].length; j++) {
+                        System.out.print(mazeo.maze[i][j]);
+                    }
                 }
             } 
         } catch(Exception e) {
             logger.error("/!\\ An error has occured /!\\");
+            logger.error(e);
         }
         logger.trace("**** Computing path");
         logger.trace("PATH NOT COMPUTED");
