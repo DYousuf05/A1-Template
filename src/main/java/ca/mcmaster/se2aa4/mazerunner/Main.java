@@ -15,10 +15,19 @@ enum Direction {
 }
 
 class Maze {
-    public boolean[][] maze;
+    private boolean[][] maze;
+    private int entryPoint;
 
     public Maze(int rows, int cols) {
         maze = new boolean[rows][cols];
+    }
+
+    public void locateEntry() {
+        for (int row = 0; row < maze.length; row++) {
+            if (!maze[row][0]) {
+                entryPoint = row;
+            }
+        }
     }
     
     public void setMazeUnit(int row, int col, boolean val) {
@@ -85,25 +94,21 @@ public class Main {
                     cols = Math.max(cols, tempLine.length());
                 }
 
-                Maze mazeo = new Maze(rows, cols);
+                Maze maze = new Maze(rows, cols);
 
                 while ((line = reader.readLine()) != null) {
                     for (int idx = 0; idx < line.length(); idx++) {
                         if (line.charAt(idx) == '#') {
-                            mazeo.setMazeUnit(lineCount, idx, true);
+                            maze.setMazeUnit(lineCount, idx, true);
                         } else if (line.charAt(idx) == ' ') {
-                            mazeo.setMazeUnit(lineCount, idx, false);
+                            maze.setMazeUnit(lineCount, idx, false);
                         }
                     }
-                    System.out.print(System.lineSeparator());
                     lineCount++;
                 }
-                for (int i = 0; i < mazeo.maze.length; i++) {
-                    System.out.println();
-                    for (int j = 0; j < mazeo.maze[i].length; j++) {
-                        System.out.print(mazeo.maze[i][j]);
-                    }
-                }
+                
+                maze.locateEntry();
+
             } 
         } catch(Exception e) {
             logger.error("/!\\ An error has occured /!\\");
