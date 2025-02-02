@@ -7,41 +7,104 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.cli.*;
 import java.util.*;
+import java.lang.*; 
 
-enum Direction {
+enum Direction { // The various directions for the maze
     NORTH,
     EAST,
     SOUTH,
     WEST;
 }
 
+enum Result { // Boolean representation of valid and invalid paths by the user
+    CORRECT,
+    INCORRECT
+}
+
 
 class Maze {
     private boolean[][] maze;
-    private int entryPoint;
     private Player player;
-    public StringBuffer path = new StringBuffer();
+    private StringBuffer path = new StringBuffer();
     int repeats = 0;
 
-    public Maze(int rows, int cols) {
+    public Maze(int rows, int cols) { // Creates array from maze file
         maze = new boolean[rows][cols];
         player = new Player();
-        player.setDir(Direction.EAST);
     }
 
-    public void locateEntry() {
+    public void locateEntry() { // Finds the entry in the maze
         for (int row = 0; row < maze.length; row++) {
             if (!maze[row][0]) {
-                entryPoint = row;
                 player.setPos(row, 0);
-                break;
+                player.setDir(Direction.EAST);
+                return;
+            }
+        }
+        for (int row = 0; row < maze.length; row++) {
+            if (!maze[row][maze[0].length - 1]) {
+                player.setPos(row, maze[0].length - 1);
+                player.setDir(Direction.WEST);
+                return;
+            }
+        }
+        for (int col = 0; col < maze[0].length; col++) {
+            if (!maze[0][col]) {
+                player.setPos(0, col);
+                player.setDir(Direction.SOUTH);
+                return;
+            }
+        }
+        for (int col = 0; col < maze[0].length; col++) {
+            if (!maze[maze.length - 1][col]) {
+                player.setPos(maze.length - 1, col);
+                player.setDir(Direction.NORTH);
+                return;
             }
         }
     }
 
+    public Result userPathCheck(StringBuffer userPath) { // If a path is given, check if the path is valid or not
+        repeats = 1;
+        for (int i = 0; i < userPath.length(); i++) {
+            char instruction = userPath.charAt(i);
+            
+            if (instruction == 'F') {
+                for (int j = 0; j < repeats; j++) {
+                    
+                    if (!player.forwardSide(maze)) {
+                        player.move();
+                    }
+                    else {
+                        return Result.INCORRECT;
+                    }
+                }
+            }
+            else if (instruction == 'R') {
+                for (int j = 0; j < repeats; j++) {
+                    player.turnRight();
+                }
+            }
+            else if (instruction == 'L') {
+                for (int j = 0; j < repeats; j++) {
+                    player.turnLeft();
+                }
+            }
+            else if (Character.isDigit(instruction)) {
+                repeats = instruction - '0'; // Turn the number into an int
+            }
+            else {
+                return Result.INCORRECT;
+            }
+            
+        }
+        if (!player.isAtExit(maze)) {
+            return Result.INCORRECT;
+        }
+        return Result.CORRECT;
+    }
 
-
-    public void traverse() {     
+    public void traverse() { // Traverse the maze given by the file
         while (!player.isAtExit(maze)) {
             if (!player.rightSide(maze)) {
                 emptyRepeats();
@@ -73,7 +136,7 @@ class Maze {
         emptyRepeats();
     }
 
-    public void emptyRepeats() {
+    public void emptyRepeats() { // For F's, if multiple, store the count and append all at once
         if (repeats == 1) {
             path.append("F");
         }
@@ -83,8 +146,13 @@ class Maze {
         repeats = 0;
     }
 
-    public void setMazeUnit(int row, int col, boolean val) {
+    public void setMazeUnit(int row, int col, boolean val) { // Map out the maze in the array
         maze[row][col] = val;
+    }
+
+    public String getPath() { // Send a copy of the path
+        String pathCopy = path.toString();
+        return pathCopy;
     }
 }
 
@@ -121,7 +189,7 @@ class Player {
         }
     }
 
-    public boolean rightSide(boolean[][] maze) {
+    public boolean rightSide(boolean[][] maze) { // Checks right side of player
         if (dir == Direction.NORTH) {
             return maze[row][col+1];
         }
@@ -137,7 +205,7 @@ class Player {
         return true;
     }
 
-    public boolean leftSide(boolean[][] maze) {
+    public boolean leftSide(boolean[][] maze) { // Checks left side of player
         if (dir == Direction.NORTH) {
             return maze[row][col-1];
         }
@@ -153,7 +221,7 @@ class Player {
         return true;
     }
 
-    public boolean forwardSide(boolean[][] maze) {
+    public boolean forwardSide(boolean[][] maze) { // Checks in front of player
         if (dir == Direction.NORTH) {
             return maze[row-1][col];
         }
@@ -207,11 +275,6 @@ public class Main {
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
     private static final Option pathArg = new Option("p", "path", true, "Enter a path to see if it can traverse the maze");
        public static void main(String[] args) {
-        
-        
-    
-        logger.info("** Starting Maze Runner");
-
         CommandLineParser clParser = new DefaultParser();
         Options options = new Options();
         options.addOption(mazeArg);
@@ -221,11 +284,10 @@ public class Main {
             CommandLine cl = clParser.parse(options, args);
             if (cl.hasOption(mazeArg.getLongOpt())) {
                 String fileArg = cl.getOptionValue(mazeArg.getLongOpt());
-                logger.trace("**** Reading the maze from file " + fileArg);
                 BufferedReader mazeSizeReader = new BufferedReader(new FileReader(fileArg));
                 BufferedReader mazeBuildReader = new BufferedReader(new FileReader(fileArg));
-                String tempLine;
-                String line;
+                String tempLine; // Read each line in the file to build the array
+                String line; // Read each line in the file to map the maze in the array
                 int rows = 0;
                 int cols = 0;
                 int lineCount = 0;
@@ -249,21 +311,25 @@ public class Main {
                 
                 maze.locateEntry();
                 if (cl.hasOption(pathArg.getOpt())) {
-                    String userPath = cl.getOptionValue(pathArg.getLongOpt());
+                    String userArg = cl.getOptionValue(pathArg.getLongOpt());
+                    StringBuffer userPath = new StringBuffer(userArg);
+                    Result pathResult = maze.userPathCheck(userPath);
+                    if (pathResult == Result.CORRECT) {
+                        System.out.println("correct Path");
+                    }
+                    else {
+                        System.out.println("incorrect Path");
+                    }
                 }
                 else {
                     maze.traverse();
+                    String result = maze.getPath();
+                    System.out.println(result);
                 }
-                
-                System.out.println(maze.path);
             } 
             
         } catch(Exception e) {
-            logger.error("/!\\ An error has occured /!\\");
-            logger.error(e);
+            System.err.println("/!\\ An error has occured /!\\");
         }
-        logger.trace("**** Computing path");
-        logger.trace("PATH NOT COMPUTED");
-        logger.info("** End of MazeRunner");
     }
 }
