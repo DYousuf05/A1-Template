@@ -15,6 +15,7 @@ enum Direction {
     WEST;
 }
 
+
 class Maze {
     private boolean[][] maze;
     private int entryPoint;
@@ -204,7 +205,7 @@ public class Main {
 
     private static final Logger logger = LogManager.getLogger();
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
-    private static final Option pathArg = new Option("p", "input", true, "Enter a path to see if it can traverse the maze");
+    private static final Option pathArg = new Option("p", "path", true, "Enter a path to see if it can traverse the maze");
        public static void main(String[] args) {
         
         
@@ -247,9 +248,16 @@ public class Main {
                 }
                 
                 maze.locateEntry();
-                maze.traverse();
+                if (cl.hasOption(pathArg.getOpt())) {
+                    String userPath = cl.getOptionValue(pathArg.getLongOpt());
+                }
+                else {
+                    maze.traverse();
+                }
+                
                 System.out.println(maze.path);
             } 
+            
         } catch(Exception e) {
             logger.error("/!\\ An error has occured /!\\");
             logger.error(e);
