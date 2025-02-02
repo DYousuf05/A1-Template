@@ -19,7 +19,8 @@ class Maze {
     private boolean[][] maze;
     private int entryPoint;
     private Player player;
-    public ArrayList<String> path = new ArrayList<String>();
+    public StringBuffer path = new StringBuffer();
+    int repeats = 0;
 
     public Maze(int rows, int cols) {
         maze = new boolean[rows][cols];
@@ -37,33 +38,48 @@ class Maze {
         }
     }
 
-    public void traverse() {
+
+
+    public void traverse() {     
         while (!player.isAtExit(maze)) {
             if (!player.rightSide(maze)) {
+                emptyRepeats();
                 player.turnRight();
-                path.add("R");
+                path.append("R");
                 player.move();
-                path.add("F");
+                repeats++;
             }
             else if (!player.forwardSide(maze)) {
                 player.move();
-                path.add("F");
+                repeats++;
             }
             else if (!player.leftSide(maze)) {
+                emptyRepeats();
                 player.turnLeft();
-                path.add("L");
+                path.append("L");
                 player.move();
-                path.add("F");
+                repeats++;
             }
             else {
+                emptyRepeats();
                 player.turnRight();
-                path.add("R");
                 player.turnRight();
-                path.add("R");
+                path.append("2R");
                 player.move();
-                path.add("F");
+                repeats++;
             }
         }
+        emptyRepeats();
+    }
+
+    public void emptyRepeats() {
+        if (repeats == 1) {
+            path.append("F");
+        }
+        else {
+            path.append(repeats + "F");
+        }
+        repeats = 0;
     }
 
     public void setMazeUnit(int row, int col, boolean val) {
@@ -188,6 +204,7 @@ public class Main {
 
     private static final Logger logger = LogManager.getLogger();
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
+    private static final Option pathArg = new Option("p", "input", true, "Enter a path to see if it can traverse the maze");
        public static void main(String[] args) {
         
         
@@ -197,27 +214,28 @@ public class Main {
         CommandLineParser clParser = new DefaultParser();
         Options options = new Options();
         options.addOption(mazeArg);
+        options.addOption(pathArg);
 
         try {
             CommandLine cl = clParser.parse(options, args);
             if (cl.hasOption(mazeArg.getLongOpt())) {
                 String fileArg = cl.getOptionValue(mazeArg.getLongOpt());
                 logger.trace("**** Reading the maze from file " + fileArg);
-                BufferedReader tempReader = new BufferedReader(new FileReader(fileArg));
-                BufferedReader reader = new BufferedReader(new FileReader(fileArg));
+                BufferedReader mazeSizeReader = new BufferedReader(new FileReader(fileArg));
+                BufferedReader mazeBuildReader = new BufferedReader(new FileReader(fileArg));
                 String tempLine;
                 String line;
                 int rows = 0;
                 int cols = 0;
                 int lineCount = 0;
-                while ((tempLine = tempReader.readLine()) != null) {
+                while ((tempLine = mazeSizeReader.readLine()) != null) {
                     rows++;
                     cols = Math.max(cols, tempLine.length());
                 }
 
                 Maze maze = new Maze(rows, cols);
 
-                while ((line = reader.readLine()) != null) {
+                while ((line = mazeBuildReader.readLine()) != null) {
                     for (int idx = 0; idx < line.length(); idx++) {
                         if (line.charAt(idx) == '#') {
                             maze.setMazeUnit(lineCount, idx, true);
