@@ -1,19 +1,22 @@
 package ca.mcmaster.se2aa4.mazerunner;
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.cli.*;
-import java.util.*;
-import java.lang.*; 
 
 enum Direction { // The various directions for the maze
     NORTH,
     EAST,
     SOUTH,
-    WEST;
+    WEST
+}
+
+enum MazeValidity {
+    VALID_MAZE, // Has an entry and exit
+    INVALID_MAZE // No entry or exit
 }
 
 enum Result { // Boolean representation of valid and invalid paths by the user
@@ -33,35 +36,22 @@ class Maze {
         player = new Player();
     }
 
-    public void locateEntry() { // Finds the entry in the maze
-        for (int row = 0; row < maze.length; row++) {
-            if (!maze[row][0]) {
-                player.setPos(row, 0);
-                player.setDir(Direction.EAST);
-                return;
+    public MazeValidity locateEntry() { // Finds the entry in the maze
+        for (int entryRow = 0; entryRow < maze.length; entryRow++) {
+            if (!maze[entryRow][0]) {
+                
+                for (int exitRow = 0; exitRow < maze.length; exitRow++) {
+                    
+                    if (!maze[exitRow][maze[0].length - 1]) {
+                        player.setPos(entryRow, 0);
+                        player.setDir(Direction.EAST);
+                        return MazeValidity.VALID_MAZE;
+                    }
+                }
+                return MazeValidity.INVALID_MAZE;
             }
         }
-        for (int row = 0; row < maze.length; row++) {
-            if (!maze[row][maze[0].length - 1]) {
-                player.setPos(row, maze[0].length - 1);
-                player.setDir(Direction.WEST);
-                return;
-            }
-        }
-        for (int col = 0; col < maze[0].length; col++) {
-            if (!maze[0][col]) {
-                player.setPos(0, col);
-                player.setDir(Direction.SOUTH);
-                return;
-            }
-        }
-        for (int col = 0; col < maze[0].length; col++) {
-            if (!maze[maze.length - 1][col]) {
-                player.setPos(maze.length - 1, col);
-                player.setDir(Direction.NORTH);
-                return;
-            }
-        }
+        return MazeValidity.INVALID_MAZE;
     }
 
     public Result userPathCheck(StringBuffer userPath) { // If a path is given, check if the path is valid or not
@@ -71,24 +61,31 @@ class Maze {
             
             if (instruction == 'F') {
                 for (int j = 0; j < repeats; j++) {
-                    
-                    if (!player.forwardSide(maze)) {
-                        player.move();
+                    if (!player.isAtExit(maze)) {
+                        if (!player.forwardSide(maze)) {
+                            player.move();
+                        }
+                        else {
+                            return Result.INCORRECT;
+                        }
                     }
                     else {
                         return Result.INCORRECT;
                     }
                 }
+                repeats = 1;
             }
             else if (instruction == 'R') {
                 for (int j = 0; j < repeats; j++) {
                     player.turnRight();
                 }
+                repeats = 1;
             }
             else if (instruction == 'L') {
                 for (int j = 0; j < repeats; j++) {
                     player.turnLeft();
                 }
+                repeats = 1;
             }
             else if (Character.isDigit(instruction)) {
                 repeats = instruction - '0'; // Turn the number into an int
@@ -271,7 +268,6 @@ class Player {
 
 public class Main {
 
-    private static final Logger logger = LogManager.getLogger();
     private static final Option mazeArg = new Option("i", "input", true, "Enter a maze");
     private static final Option pathArg = new Option("p", "path", true, "Enter a path to see if it can traverse the maze");
        public static void main(String[] args) {
@@ -309,27 +305,43 @@ public class Main {
                     lineCount++;
                 }
                 
-                maze.locateEntry();
-                if (cl.hasOption(pathArg.getOpt())) {
-                    String userArg = cl.getOptionValue(pathArg.getLongOpt());
-                    StringBuffer userPath = new StringBuffer(userArg);
-                    Result pathResult = maze.userPathCheck(userPath);
-                    if (pathResult == Result.CORRECT) {
-                        System.out.println("correct Path");
+                MazeValidity validity = maze.locateEntry();
+                if (validity == MazeValidity.VALID_MAZE) {
+                    if (cl.hasOption(pathArg.getOpt())) {
+                        String userArg = cl.getOptionValue(pathArg.getLongOpt());
+                        StringBuffer userPath = new StringBuffer(userArg);
+                        Result pathResult = maze.userPathCheck(userPath);
+                        if (pathResult == Result.CORRECT) {
+                            System.out.println("correct Path");
+                        }
+                        else {
+                            System.out.println("incorrect Path");
+                        }
                     }
                     else {
-                        System.out.println("incorrect Path");
+                        maze.traverse();
+                        String result = maze.getPath();
+                        System.out.println(result);
                     }
                 }
                 else {
-                    maze.traverse();
-                    String result = maze.getPath();
-                    System.out.println(result);
+                    System.out.println("Maze cannot be traversed");
                 }
             } 
             
-        } catch(Exception e) {
-            System.err.println("/!\\ An error has occured /!\\");
+        } catch (Exception exception) {
+            String errorMessage;
+            if (exception instanceof ArrayIndexOutOfBoundsException) {
+                errorMessage = "/!\\ Error: Maze is empty /!\\";
+            }
+            else if (exception instanceof FileNotFoundException) {
+                errorMessage = "/!\\ Error: Maze file could not be found /!\\";
+            }
+            else {
+                errorMessage = "/!\\ An error has occured /!\\";
+                
+            }
+            System.err.println(errorMessage);
         }
     }
 }
