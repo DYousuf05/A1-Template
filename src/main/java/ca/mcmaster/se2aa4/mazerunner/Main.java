@@ -3,6 +3,8 @@ package ca.mcmaster.se2aa4.mazerunner;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.cli.*;
@@ -24,10 +26,132 @@ enum Result { // Boolean representation of valid and invalid paths by the user
     INCORRECT
 }
 
+interface Command {
+    void execute();
+}
+
+class forwardCommand implements Command {
+    private Player player;
+
+    public forwardCommand(Player player) {
+        this.player = player;
+    }
+
+    public void execute() {
+        player.move();
+    }
+}
+
+class turnLeftCommand implements Command {
+    private Player player;
+
+    public turnLeftCommand(Player player) {
+        this.player = player;
+    }
+
+    public void execute() {
+        player.turnLeft();
+    }
+}
+
+class turnRightCommand implements Command {
+    private Player player;
+
+    public turnRightCommand(Player player) {
+        this.player = player;
+    }
+
+    public void execute() {
+        player.turnRight();
+    }
+}
+
+class PlayerControl {
+    private Command command;
+
+    public void setCommand(Command command) {
+        this.command = command;
+    }
+
+    public void mazeNextStep() {
+        command.execute();
+    }
+}
+
+abstract class MazeReaderTemplate {
+    
+    protected int rows;
+    protected int cols;
+    protected String line;
+    protected String fileArg;
+    private Maze maze;
+
+    public MazeReaderTemplate(String fileArg) {
+        this.fileArg = fileArg;
+    }
+
+    public final Maze performMazeRead() throws IOException {
+        maze = readDimensions();
+        return executeMazeReadAction(maze);
+    } 
+
+    private Maze readDimensions() throws IOException {
+        rows = 0;
+        cols = 0;
+        BufferedReader reader = new BufferedReader(new FileReader(fileArg));
+        while ((line = reader.readLine()) != null) {
+            rows++;
+            cols = Math.max(cols, line.length());
+        }
+        return new Maze(rows, cols);
+    }
+
+    protected abstract Maze executeMazeReadAction(Maze maze);
+}
+
+class SizeReader extends MazeReaderTemplate {
+
+    public SizeReader(String fileArg) {
+        super(fileArg);
+    }
+
+    protected Maze executeMazeReadAction(Maze maze) {
+        return maze;
+    }
+}
+
+class BuildReader extends MazeReaderTemplate {
+
+    public BuildReader(String fileArg) {
+        super(fileArg);
+    }
+
+    protected Maze executeMazeReadAction(Maze maze) {
+        try {
+            int lineCount = 0;
+            BufferedReader reader = new BufferedReader(new FileReader(fileArg));
+            while ((line = reader.readLine()) != null) {
+                for (int idx = 0; idx < line.length(); idx++) {
+                    if (line.charAt(idx) == '#') {
+                        maze.setMazeUnit(lineCount, idx, true);
+                    } else if (line.charAt(idx) == ' ') {
+                        maze.setMazeUnit(lineCount, idx, false);
+                    }
+                }
+                lineCount++;
+            }
+        }
+        catch (Exception e) {
+            System.err.println(e);
+        }
+        return maze;
+    }
+}
 
 class Maze {
     private boolean[][] maze;
     private Player player;
+
     private StringBuffer path = new StringBuffer();
     int repeats = 0;
 
@@ -55,45 +179,40 @@ class Maze {
     }
 
     public Result userPathCheck(StringBuffer userPath) { // If a path is given, check if the path is valid or not
+        Command moveForward = new forwardCommand(player);
+        Command turnLeft = new turnLeftCommand(player);
+        Command turnRight = new turnRightCommand(player);
+
+        PlayerControl controller = new PlayerControl();
+
         repeats = 1;
         for (int i = 0; i < userPath.length(); i++) {
             char instruction = userPath.charAt(i);
             
-            if (instruction == 'F') {
+            if (Character.isDigit(instruction)) {
+                repeats = instruction - '0'; // Turn the number into an int
+            }
+            else {
                 for (int j = 0; j < repeats; j++) {
-                    if (!player.isAtExit(maze)) {
-                        if (!player.forwardSide(maze)) {
-                            player.move();
-                        }
-                        else {
+                    if (instruction == 'F') {
+                        if (player.isAtExit(maze) || player.forwardSide(maze)) {
                             return Result.INCORRECT;
                         }
+                        controller.setCommand(moveForward);
+                    }
+                    else if (instruction == 'R') {
+                        controller.setCommand(turnRight);
+                    }
+                    else if (instruction == 'L') {
+                        controller.setCommand(turnLeft);
                     }
                     else {
                         return Result.INCORRECT;
                     }
+                    controller.mazeNextStep();
                 }
                 repeats = 1;
             }
-            else if (instruction == 'R') {
-                for (int j = 0; j < repeats; j++) {
-                    player.turnRight();
-                }
-                repeats = 1;
-            }
-            else if (instruction == 'L') {
-                for (int j = 0; j < repeats; j++) {
-                    player.turnLeft();
-                }
-                repeats = 1;
-            }
-            else if (Character.isDigit(instruction)) {
-                repeats = instruction - '0'; // Turn the number into an int
-            }
-            else {
-                return Result.INCORRECT;
-            }
-            
         }
         if (!player.isAtExit(maze)) {
             return Result.INCORRECT;
@@ -280,30 +399,36 @@ public class Main {
             CommandLine cl = clParser.parse(options, args);
             if (cl.hasOption(mazeArg.getLongOpt())) {
                 String fileArg = cl.getOptionValue(mazeArg.getLongOpt());
-                BufferedReader mazeSizeReader = new BufferedReader(new FileReader(fileArg));
-                BufferedReader mazeBuildReader = new BufferedReader(new FileReader(fileArg));
-                String tempLine; // Read each line in the file to build the array
-                String line; // Read each line in the file to map the maze in the array
-                int rows = 0;
-                int cols = 0;
-                int lineCount = 0;
-                while ((tempLine = mazeSizeReader.readLine()) != null) {
-                    rows++;
-                    cols = Math.max(cols, tempLine.length());
-                }
+                SizeReader getMazeSize = new SizeReader(fileArg);
+                BuildReader fillMazeArray = new BuildReader(fileArg);
 
-                Maze maze = new Maze(rows, cols);
+                // BufferedReader mazeSizeReader = new BufferedReader(new FileReader(fileArg));
+                // BufferedReader mazeBuildReader = new BufferedReader(new FileReader(fileArg));
+                // String tempLine; // Read each line in the file to build the array
+                // String line; // Read each line in the file to map the maze in the array
+                // int rows = 0;
+                // int cols = 0;
+                // int lineCount = 0;
+                // while ((tempLine = mazeSizeReader.readLine()) != null) {
+                //     rows++;
+                //     cols = Math.max(cols, tempLine.length());
+                // }
 
-                while ((line = mazeBuildReader.readLine()) != null) {
-                    for (int idx = 0; idx < line.length(); idx++) {
-                        if (line.charAt(idx) == '#') {
-                            maze.setMazeUnit(lineCount, idx, true);
-                        } else if (line.charAt(idx) == ' ') {
-                            maze.setMazeUnit(lineCount, idx, false);
-                        }
-                    }
-                    lineCount++;
-                }
+                // Maze maze = new Maze(rows, cols);
+
+                // while ((line = mazeBuildReader.readLine()) != null) {
+                //     for (int idx = 0; idx < line.length(); idx++) {
+                //         if (line.charAt(idx) == '#') {
+                //             maze.setMazeUnit(lineCount, idx, true);
+                //         } else if (line.charAt(idx) == ' ') {
+                //             maze.setMazeUnit(lineCount, idx, false);
+                //         }
+                //     }
+                //     lineCount++;
+                // }
+
+                Maze maze = getMazeSize.performMazeRead();
+                maze = fillMazeArray.performMazeRead();
                 
                 MazeValidity validity = maze.locateEntry();
                 if (validity == MazeValidity.VALID_MAZE) {
@@ -320,8 +445,8 @@ public class Main {
                     }
                     else {
                         maze.traverse();
-                        String result = maze.getPath();
-                        System.out.println(result);
+                        String mazeResult = maze.getPath();
+                        System.out.println(mazeResult);
                     }
                 }
                 else {
