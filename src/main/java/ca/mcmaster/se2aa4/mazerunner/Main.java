@@ -142,7 +142,7 @@ class BuildReader extends MazeReaderTemplate {
             }
         }
         catch (Exception e) {
-            System.err.println(e);
+            System.err.println("/!\\ An error has occured /!\\");
         }
         return maze;
     }
@@ -401,31 +401,6 @@ public class Main {
                 String fileArg = cl.getOptionValue(mazeArg.getLongOpt());
                 SizeReader getMazeSize = new SizeReader(fileArg);
                 BuildReader fillMazeArray = new BuildReader(fileArg);
-
-                // BufferedReader mazeSizeReader = new BufferedReader(new FileReader(fileArg));
-                // BufferedReader mazeBuildReader = new BufferedReader(new FileReader(fileArg));
-                // String tempLine; // Read each line in the file to build the array
-                // String line; // Read each line in the file to map the maze in the array
-                // int rows = 0;
-                // int cols = 0;
-                // int lineCount = 0;
-                // while ((tempLine = mazeSizeReader.readLine()) != null) {
-                //     rows++;
-                //     cols = Math.max(cols, tempLine.length());
-                // }
-
-                // Maze maze = new Maze(rows, cols);
-
-                // while ((line = mazeBuildReader.readLine()) != null) {
-                //     for (int idx = 0; idx < line.length(); idx++) {
-                //         if (line.charAt(idx) == '#') {
-                //             maze.setMazeUnit(lineCount, idx, true);
-                //         } else if (line.charAt(idx) == ' ') {
-                //             maze.setMazeUnit(lineCount, idx, false);
-                //         }
-                //     }
-                //     lineCount++;
-                // }
 
                 Maze maze = getMazeSize.performMazeRead();
                 maze = fillMazeArray.performMazeRead();
